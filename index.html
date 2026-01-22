@@ -18,7 +18,7 @@
 
     <script>
         // 👇 PASTE YOUR "PUBLISH TO WEB" CSV LINK HERE 👇
-        const CSV_URL = "PASTE_YOUR_GOOGLE_CSV_LINK_HERE"; 
+        const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRcnTRz38nIVh9_GlvL5lfXquWCQm3iSm6CIe2Dm63aJzOnr2-63gk8p8VTJz-M8fULNM_dwj0c1N5w/pub?gid=0&single=true&output=csv"; 
     </script>
 
     <div class="max-w-6xl mx-auto space-y-6">
@@ -83,44 +83,68 @@
     <script>
         async function loadJournal() {
             try {
-                // 1. Fetch CSV
+                // 1. Fetch Data
                 const res = await fetch(CSV_URL);
                 const text = await res.text();
                 
-                // 2. Parse CSV (Handles comma inside quotes if needed, but simple split for now)
+                console.log("🔍 Raw Data Preview:", text.substring(0, 200)); // Debugging
+
+                // 2. Safety Check: Did we get HTML instead of CSV?
+                if (text.trim().startsWith("<!DOCTYPE") || text.includes("<html")) {
+                    throw new Error("Received HTML instead of CSV. Check your Google Sheet Link!");
+                }
+
+                // 3. Parse CSV (Handles newlines and commas better)
                 const rows = text.split('\n').map(row => row.split(','));
                 
-                // 3. Map Columns based on your Google Script Order:
+                // 4. Map & Filter Data
+                // Expected Columns from Google Script:
                 // [0]CloseTime, [1]Bot, [2]Sym, [3]Dir, [4]Profit, [5]OpenTime, [6]Duration, [7]Entry, [8]PID
-                const data = rows.slice(1).filter(r => r.length > 5).map((r, i) => ({
-                    id: i,
-                    closeTime: new Date(r[0]),
-                    bot: r[1],
-                    symbol: r[2],
-                    dir: r[3],
-                    profit: parseFloat(r[4]),
-                    openTime: new Date(r[5]),
-                    duration: r[6],
-                    entryPrice: parseFloat(r[7]),
-                    pid: r[8]
-                })).reverse(); // Newest first
+                const data = rows
+                    .slice(1) // Skip header
+                    .filter(r => r.length >= 8 && !isNaN(Date.parse(r[0]))) // Only keep rows with valid dates
+                    .map((r, i) => ({
+                        id: i,
+                        closeTime: new Date(r[0]),
+                        bot: clean(r[1]),
+                        symbol: clean(r[2]),
+                        dir: clean(r[3]),
+                        profit: parseFloat(r[4]) || 0,
+                        openTime: new Date(r[5]),
+                        duration: clean(r[6]),
+                        entryPrice: parseFloat(r[7]) || 0,
+                        pid: clean(r[8])
+                    }))
+                    .reverse(); // Show newest first
+
+                if (data.length === 0) throw new Error("No valid trades found in CSV.");
 
                 renderTable(data);
                 renderStats(data);
 
             } catch (err) {
-                console.error(err);
-                document.getElementById('journal-body').innerHTML = `<tr><td colspan="7" class="px-6 py-8 text-center text-red-400 bg-red-500/10 border-l-4 border-red-500">Error: Could not load data. Check CSV permissions.</td></tr>`;
+                console.error("🔥 Load Error:", err);
+                const msg = err.message.includes("HTML") 
+                    ? "Error: Link is returning a Webpage, not CSV. Use 'Publish to Web > CSV'." 
+                    : `Error: ${err.message}`;
+                
+                document.getElementById('journal-body').innerHTML = 
+                    `<tr><td colspan="7" class="px-6 py-8 text-center text-red-400 bg-red-500/10 border-l-4 border-red-500 font-bold">${msg}</td></tr>`;
             }
+        }
+
+        // Helper to remove quotes/spaces from CSV cells
+        function clean(str) {
+            return str ? str.replace(/['"]/g, '').trim() : '';
         }
 
         function renderTable(trades) {
             const html = trades.map(t => {
                 const isWin = t.profit >= 0;
-                // Format Dates
-                const openDate = t.openTime.toLocaleDateString('en-SG', {day:'2-digit', month:'short'});
-                const openTime = t.openTime.toLocaleTimeString('en-SG', {hour:'2-digit', minute:'2-digit'});
-                const closeFull = t.closeTime.toLocaleString('en-SG');
+                // Safe Date Formatting
+                const openDate = isNaN(t.openTime) ? '---' : t.openTime.toLocaleDateString('en-SG', {day:'2-digit', month:'short'});
+                const openTime = isNaN(t.openTime) ? '--:--' : t.openTime.toLocaleTimeString('en-SG', {hour:'2-digit', minute:'2-digit'});
+                const closeFull = isNaN(t.closeTime) ? '---' : t.closeTime.toLocaleString('en-SG');
                 
                 return `
                 <tr class="hover:bg-white/5 transition group cursor-pointer border-l-2 border-transparent hover:border-blue-500" onclick="toggleDetails(${t.id})">
