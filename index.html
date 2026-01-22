@@ -33,6 +33,7 @@
                  <div class="bg-slate-900 px-4 py-2 rounded-lg border border-slate-700 text-right">
                     <div class="text-[10px] text-slate-500 uppercase font-bold">Net PnL</div>
                     <div id="total-pnl" class="text-xl font-mono font-bold text-white">---</div>
+                     <div id="last-sync" class="text-[9px] text-slate-600 mt-1 text-right font-mono">Syncing...</div>
                 </div>
             </div>
         </header>
@@ -76,11 +77,13 @@
     <script>
         async function loadJournal() {
             try {
-                const res = await fetch(CSV_URL);
+                const res = await fetch(CSV_URL + "&t=" + new Date().getTime()); 
                 const text = await res.text();
                 
                 // Parse CSV
                 const rows = text.split('\n').map(row => row.split(','));
+                const now = new Date();
+                document.getElementById('last-sync').innerText = "Synced: " + now.toLocaleTimeString();
                 
                 // Map Data (Matching the Apps Script Order)
                 // A[0]:CloseTime, B[1]:Bot, C[2]:Sym, D[3]:Dir, E[4]:Net, F[5]:Open, 
