@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zeriah Journal | Algo Performance</title>
+    <title>Zeriah Journal | Live Algo Performance</title>
     <link rel="icon" href="https://fav.farm/🤖" />
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
@@ -11,62 +11,69 @@
         body { font-family: 'Inter', sans-serif; background-color: #0b1120; color: #e2e8f0; }
         .font-mono { font-family: 'JetBrains Mono', monospace; }
         .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.05); }
+        .receipt-row { background-color: #111827; box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.3); }
     </style>
 </head>
-<body class="min-h-screen p-4 md:p-8">
+<body class="min-h-screen p-4 md:p-8 selection:bg-blue-500/30">
 
     <script>
         // 👇 PASTE YOUR "PUBLISH TO WEB" CSV LINK HERE 👇
-        const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRcnTRz38nIVh9_GlvL5lfXquWCQm3iSm6CIe2Dm63aJzOnr2-63gk8p8VTJz-M8fULNM_dwj0c1N5w/pub?gid=0&single=true&output=csv"; 
+        const CSV_URL = "PASTE_YOUR_GOOGLE_CSV_LINK_HERE"; 
     </script>
 
-    <div class="max-w-5xl mx-auto space-y-6">
+    <div class="max-w-6xl mx-auto space-y-6">
         
-        <header class="flex justify-between items-end border-b border-slate-800 pb-6">
+        <header class="flex flex-col md:flex-row justify-between items-start md:items-end border-b border-slate-800 pb-6 gap-4">
             <div>
-                <div class="text-[10px] font-bold text-blue-500 uppercase tracking-widest mb-1">Zeriah Labs</div>
-                <h1 class="text-3xl font-extrabold text-white tracking-tight">Algorithmic Journal</h1>
-                <p class="text-slate-500 text-sm mt-1">Live execution logs from cTrader StochGrid & Ichimoku Bots</p>
+                <a href="https://invest.zeriahlabs.com" class="text-[10px] font-bold text-blue-500 uppercase tracking-widest hover:text-blue-400 transition mb-1 inline-block">← Zeriah Labs</a>
+                <h1 class="text-3xl md:text-4xl font-extrabold text-white tracking-tight flex items-center">
+                    Algo Journal <span class="ml-3 text-sm bg-emerald-500/10 text-emerald-400 px-2 py-1 rounded-full border border-emerald-500/20 font-mono">Live</span>
+                </h1>
+                <p class="text-slate-500 text-sm mt-2 max-w-xl">
+                    Real-time execution log. Data flows directly from cTrader via Webhook to Google Sheets.
+                </p>
             </div>
-            <div class="text-right hidden md:block">
-                <div class="text-xs text-slate-500 uppercase font-bold">Total PnL (Visible)</div>
-                <div id="total-pnl" class="text-2xl font-mono font-bold text-slate-700">---</div>
+            <div class="text-left md:text-right bg-slate-800/50 p-4 rounded-xl border border-slate-700/50">
+                <div class="text-xs text-slate-500 uppercase font-bold tracking-wider">Net Realised PnL</div>
+                <div id="total-pnl" class="text-3xl font-mono font-bold text-slate-700 mt-1">---</div>
             </div>
         </header>
 
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div class="glass p-4 rounded-xl">
-                <div class="text-xs text-slate-500 uppercase font-bold">Trades</div>
-                <div id="stat-count" class="text-xl font-mono font-bold text-white mt-1">-</div>
+            <div class="glass p-5 rounded-xl border-t-2 border-blue-500">
+                <div class="text-xs text-slate-400 uppercase font-bold tracking-wider">Trades Executed</div>
+                <div id="stat-count" class="text-2xl font-mono font-bold text-white mt-2">-</div>
             </div>
-            <div class="glass p-4 rounded-xl">
-                <div class="text-xs text-slate-500 uppercase font-bold">Win Rate</div>
-                <div id="stat-winrate" class="text-xl font-mono font-bold text-white mt-1">-</div>
+            <div class="glass p-5 rounded-xl border-t-2 border-purple-500">
+                <div class="text-xs text-slate-400 uppercase font-bold tracking-wider">Win Rate</div>
+                <div id="stat-winrate" class="text-2xl font-mono font-bold text-white mt-2">-</div>
             </div>
-            <div class="glass p-4 rounded-xl">
-                <div class="text-xs text-slate-500 uppercase font-bold">Best Win</div>
-                <div id="stat-best" class="text-xl font-mono font-bold text-emerald-400 mt-1">-</div>
+            <div class="glass p-5 rounded-xl border-t-2 border-emerald-500">
+                <div class="text-xs text-slate-400 uppercase font-bold tracking-wider">Best Trade</div>
+                <div id="stat-best" class="text-2xl font-mono font-bold text-emerald-400 mt-2">-</div>
             </div>
-            <div class="glass p-4 rounded-xl">
-                <div class="text-xs text-slate-500 uppercase font-bold">Worst Loss</div>
-                <div id="stat-worst" class="text-xl font-mono font-bold text-red-400 mt-1">-</div>
+            <div class="glass p-5 rounded-xl border-t-2 border-red-500">
+                <div class="text-xs text-slate-400 uppercase font-bold tracking-wider">Worst Drawdown</div>
+                <div id="stat-worst" class="text-2xl font-mono font-bold text-red-400 mt-2">-</div>
             </div>
         </div>
 
-        <div class="glass rounded-xl overflow-hidden">
+        <div class="glass rounded-xl overflow-hidden shadow-2xl">
             <div class="overflow-x-auto">
                 <table class="w-full text-left text-sm">
-                    <thead class="bg-slate-800/50 text-xs uppercase font-bold text-slate-400 border-b border-slate-700">
+                    <thead class="bg-slate-900/80 text-xs uppercase font-bold text-slate-400 border-b border-slate-700">
                         <tr>
-                            <th class="px-6 py-4">Time Closed</th>
+                            <th class="px-6 py-4">Open Time</th>
+                            <th class="px-6 py-4">Duration</th>
                             <th class="px-6 py-4">Bot</th>
                             <th class="px-6 py-4">Symbol</th>
-                            <th class="px-6 py-4">Duration</th>
-                            <th class="px-6 py-4 text-right">Profit (SGD)</th>
+                            <th class="px-6 py-4 text-right">Entry</th>
+                            <th class="px-6 py-4 text-right">Net Profit</th>
+                            <th class="px-4 py-4 w-10"></th>
                         </tr>
                     </thead>
                     <tbody id="journal-body" class="divide-y divide-slate-800 font-mono text-slate-300">
-                        <tr><td colspan="5" class="px-6 py-8 text-center text-slate-500">Loading Journal Data...</td></tr>
+                        <tr><td colspan="7" class="px-6 py-12 text-center text-slate-500 animate-pulse">Connecting to Neural Network...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -76,51 +83,58 @@
     <script>
         async function loadJournal() {
             try {
+                // 1. Fetch CSV
                 const res = await fetch(CSV_URL);
                 const text = await res.text();
                 
-                // Parse CSV (Simple Parser)
+                // 2. Parse CSV (Handles comma inside quotes if needed, but simple split for now)
                 const rows = text.split('\n').map(row => row.split(','));
-                const data = rows.slice(1).filter(r => r.length > 5); // Skip header & empty rows
-
-                // Map Columns (Adjust indices based on your Google Sheet Column Order)
-                // A=0, B=1, C=2, D=3, E=4, F=5, G=6...
-                // Based on your Script: A:CloseTime, B:Bot, C:Sym, D:Dir, E:Profit, F:OpenTime, G:Dur
-                const trades = data.map(r => ({
+                
+                // 3. Map Columns based on your Google Script Order:
+                // [0]CloseTime, [1]Bot, [2]Sym, [3]Dir, [4]Profit, [5]OpenTime, [6]Duration, [7]Entry, [8]PID
+                const data = rows.slice(1).filter(r => r.length > 5).map((r, i) => ({
+                    id: i,
                     closeTime: new Date(r[0]),
                     bot: r[1],
                     symbol: r[2],
                     dir: r[3],
                     profit: parseFloat(r[4]),
                     openTime: new Date(r[5]),
-                    duration: r[6]
-                })).reverse(); // Show newest first
+                    duration: r[6],
+                    entryPrice: parseFloat(r[7]),
+                    pid: r[8]
+                })).reverse(); // Newest first
 
-                renderTable(trades);
-                renderStats(trades);
+                renderTable(data);
+                renderStats(data);
 
             } catch (err) {
                 console.error(err);
-                document.getElementById('journal-body').innerHTML = `<tr><td colspan="5" class="px-6 py-8 text-center text-red-400">Error loading data. Did you publish the CSV?</td></tr>`;
+                document.getElementById('journal-body').innerHTML = `<tr><td colspan="7" class="px-6 py-8 text-center text-red-400 bg-red-500/10 border-l-4 border-red-500">Error: Could not load data. Check CSV permissions.</td></tr>`;
             }
         }
 
         function renderTable(trades) {
             const html = trades.map(t => {
                 const isWin = t.profit >= 0;
-                const dateStr = t.closeTime.toLocaleDateString('en-SG', {day:'2-digit', month:'short'});
-                const timeStr = t.closeTime.toLocaleTimeString('en-SG', {hour:'2-digit', minute:'2-digit'});
+                // Format Dates
+                const openDate = t.openTime.toLocaleDateString('en-SG', {day:'2-digit', month:'short'});
+                const openTime = t.openTime.toLocaleTimeString('en-SG', {hour:'2-digit', minute:'2-digit'});
+                const closeFull = t.closeTime.toLocaleString('en-SG');
                 
                 return `
-                <tr class="hover:bg-white/5 transition group">
+                <tr class="hover:bg-white/5 transition group cursor-pointer border-l-2 border-transparent hover:border-blue-500" onclick="toggleDetails(${t.id})">
                     <td class="px-6 py-4">
                         <div class="flex flex-col">
-                            <span class="text-white font-bold">${dateStr}</span>
-                            <span class="text-xs text-slate-500">${timeStr}</span>
+                            <span class="text-white font-bold">${openDate}</span>
+                            <span class="text-xs text-slate-500">${openTime}</span>
                         </div>
                     </td>
+                    <td class="px-6 py-4 text-xs text-slate-400">
+                        <span class="bg-slate-800 px-2 py-1 rounded border border-slate-700">${t.duration}</span>
+                    </td>
                     <td class="px-6 py-4 text-xs">
-                        <span class="bg-blue-500/10 text-blue-400 px-2 py-1 rounded border border-blue-500/20">${t.bot}</span>
+                        <span class="text-blue-400 font-bold">${t.bot}</span>
                     </td>
                     <td class="px-6 py-4">
                         <div class="flex items-center space-x-2">
@@ -128,16 +142,41 @@
                             <span class="text-[10px] uppercase px-1.5 py-0.5 rounded font-bold ${t.dir==='Buy'?'bg-emerald-500/20 text-emerald-400':'bg-red-500/20 text-red-400'}">${t.dir}</span>
                         </div>
                     </td>
-                    <td class="px-6 py-4 text-xs text-slate-500 relative cursor-help">
-                         ${t.duration}
-                         <div class="absolute bottom-full left-0 mb-2 hidden group-hover:block bg-black p-2 rounded border border-slate-700 text-xs shadow-xl whitespace-nowrap z-50">
-                            Opened: ${t.openTime.toLocaleString()}
-                        </div>
+                    <td class="px-6 py-4 text-right text-slate-400">
+                        ${t.entryPrice.toFixed(2)}
                     </td>
                     <td class="px-6 py-4 text-right">
-                        <span class="font-bold ${isWin ? 'text-emerald-400' : 'text-red-400'}">
+                        <span class="font-bold text-lg ${isWin ? 'text-emerald-400' : 'text-red-400'}">
                             ${isWin?'+':''}${t.profit.toFixed(2)}
                         </span>
+                    </td>
+                    <td class="px-4 py-4 text-slate-600 text-center">
+                        <span id="arrow-${t.id}">▼</span>
+                    </td>
+                </tr>
+                
+                <tr id="details-${t.id}" class="hidden receipt-row">
+                    <td colspan="7" class="p-6">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-xs text-slate-400">
+                            <div>
+                                <div class="uppercase tracking-widest text-[10px] mb-1 text-slate-500 font-bold">Position ID</div>
+                                <div class="font-mono text-white select-all bg-black/30 p-2 rounded border border-slate-700/50">${t.pid || 'N/A'}</div>
+                            </div>
+                            <div>
+                                <div class="uppercase tracking-widest text-[10px] mb-1 text-slate-500 font-bold">Timing</div>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>Open: <span class="text-slate-300">${t.openTime.toLocaleString()}</span></div>
+                                    <div>Close: <span class="text-slate-300">${closeFull}</span></div>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <div class="uppercase tracking-widest text-[10px] mb-1 text-slate-500 font-bold">Financials</div>
+                                <div class="space-y-1">
+                                    <div class="flex justify-between"><span>Entry:</span> <span class="text-white">${t.entryPrice}</span></div>
+                                    <div class="flex justify-between border-t border-slate-700/50 pt-1 mt-1"><span>Net PnL:</span> <span class="font-bold ${isWin?'text-emerald-400':'text-red-400'}">${isWin?'+':''}${t.profit.toFixed(2)}</span></div>
+                                </div>
+                            </div>
+                        </div>
                     </td>
                 </tr>
                 `;
@@ -145,21 +184,36 @@
             document.getElementById('journal-body').innerHTML = html;
         }
 
+        function toggleDetails(id) {
+            const row = document.getElementById(`details-${id}`);
+            const arrow = document.getElementById(`arrow-${id}`);
+            if (row.classList.contains('hidden')) {
+                row.classList.remove('hidden');
+                arrow.innerHTML = '▲';
+                arrow.classList.add('text-white');
+            } else {
+                row.classList.add('hidden');
+                arrow.innerHTML = '▼';
+                arrow.classList.remove('text-white');
+            }
+        }
+
         function renderStats(trades) {
             const wins = trades.filter(t => t.profit > 0);
             const totalPnL = trades.reduce((sum, t) => sum + t.profit, 0);
-            const winRate = ((wins.length / trades.length) * 100).toFixed(0);
-            const best = Math.max(...trades.map(t => t.profit));
-            const worst = Math.min(...trades.map(t => t.profit));
+            const winRate = trades.length > 0 ? ((wins.length / trades.length) * 100).toFixed(1) : '0.0';
+            
+            const best = trades.length > 0 ? Math.max(...trades.map(t => t.profit)) : 0;
+            const worst = trades.length > 0 ? Math.min(...trades.map(t => t.profit)) : 0;
 
             document.getElementById('stat-count').innerText = trades.length;
             document.getElementById('stat-winrate').innerText = winRate + '%';
-            document.getElementById('stat-best').innerText = '+' + best.toFixed(2);
+            document.getElementById('stat-best').innerText = (best>0?'+':'') + best.toFixed(2);
             document.getElementById('stat-worst').innerText = worst.toFixed(2);
             
             const pnlEl = document.getElementById('total-pnl');
             pnlEl.innerText = (totalPnL>=0?'+':'') + totalPnL.toFixed(2);
-            pnlEl.className = `text-2xl font-mono font-bold ${totalPnL>=0?'text-emerald-400':'text-red-400'}`;
+            pnlEl.className = `text-3xl font-mono font-bold mt-1 ${totalPnL>=0?'text-emerald-400 drop-shadow-[0_0_10px_rgba(52,211,153,0.3)]':'text-red-400 drop-shadow-[0_0_10px_rgba(248,113,113,0.3)]'}`;
         }
 
         loadJournal();
