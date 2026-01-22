@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zeriah Journal | Live Algo Performance</title>
+    <title>Zeriah Journal | Pro Audit</title>
     <link rel="icon" href="https://fav.farm/🤖" />
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
@@ -11,193 +11,177 @@
         body { font-family: 'Inter', sans-serif; background-color: #0b1120; color: #e2e8f0; }
         .font-mono { font-family: 'JetBrains Mono', monospace; }
         .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.05); }
-        .receipt-row { background-color: #111827; box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.3); }
+        .receipt-row { background-color: #0f172a; box-shadow: inset 0 4px 6px -1px rgba(0, 0, 0, 0.3); }
     </style>
 </head>
 <body class="min-h-screen p-4 md:p-8 selection:bg-blue-500/30">
 
     <script>
-        // 👇 PASTE YOUR "PUBLISH TO WEB" CSV LINK HERE 👇
-        const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRcnTRz38nIVh9_GlvL5lfXquWCQm3iSm6CIe2Dm63aJzOnr2-63gk8p8VTJz-M8fULNM_dwj0c1N5w/pub?gid=0&single=true&output=csv"; 
+        // 👇 ENSURE THIS IS YOUR "OUTPUT=CSV" LINK
+        const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR6x_J...YOUR_LINK_HERE.../pub?gid=0&single=true&output=csv"; 
     </script>
 
-    <div class="max-w-6xl mx-auto space-y-6">
+    <div class="max-w-7xl mx-auto space-y-6">
         
         <header class="flex flex-col md:flex-row justify-between items-start md:items-end border-b border-slate-800 pb-6 gap-4">
             <div>
                 <a href="https://invest.zeriahlabs.com" class="text-[10px] font-bold text-blue-500 uppercase tracking-widest hover:text-blue-400 transition mb-1 inline-block">← Zeriah Labs</a>
-                <h1 class="text-3xl md:text-4xl font-extrabold text-white tracking-tight flex items-center">
-                    Algo Journal <span class="ml-3 text-sm bg-emerald-500/10 text-emerald-400 px-2 py-1 rounded-full border border-emerald-500/20 font-mono">Live</span>
-                </h1>
-                <p class="text-slate-500 text-sm mt-2 max-w-xl">
-                    Real-time execution log. Data flows directly from cTrader via Webhook to Google Sheets.
-                </p>
+                <h1 class="text-3xl font-extrabold text-white tracking-tight">Algo Audit Trail</h1>
+                <p class="text-slate-500 text-sm mt-1">Live execution verification.</p>
             </div>
-            <div class="text-left md:text-right bg-slate-800/50 p-4 rounded-xl border border-slate-700/50">
-                <div class="text-xs text-slate-500 uppercase font-bold tracking-wider">Net Realised PnL</div>
-                <div id="total-pnl" class="text-3xl font-mono font-bold text-slate-700 mt-1">---</div>
+            <div class="flex gap-4">
+                 <div class="bg-slate-900 px-4 py-2 rounded-lg border border-slate-700 text-right">
+                    <div class="text-[10px] text-slate-500 uppercase font-bold">Net PnL</div>
+                    <div id="total-pnl" class="text-xl font-mono font-bold text-white">---</div>
+                </div>
             </div>
         </header>
 
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div class="glass p-5 rounded-xl border-t-2 border-blue-500">
-                <div class="text-xs text-slate-400 uppercase font-bold tracking-wider">Trades Executed</div>
-                <div id="stat-count" class="text-2xl font-mono font-bold text-white mt-2">-</div>
+            <div class="glass p-4 rounded-xl border-l-2 border-blue-500">
+                <div class="text-[10px] text-slate-400 uppercase font-bold">Trades</div>
+                <div id="stat-count" class="text-xl font-mono font-bold text-white mt-1">-</div>
             </div>
-            <div class="glass p-5 rounded-xl border-t-2 border-purple-500">
-                <div class="text-xs text-slate-400 uppercase font-bold tracking-wider">Win Rate</div>
-                <div id="stat-winrate" class="text-2xl font-mono font-bold text-white mt-2">-</div>
+            <div class="glass p-4 rounded-xl border-l-2 border-purple-500">
+                <div class="text-[10px] text-slate-400 uppercase font-bold">Win Rate</div>
+                <div id="stat-winrate" class="text-xl font-mono font-bold text-white mt-1">-</div>
             </div>
-            <div class="glass p-5 rounded-xl border-t-2 border-emerald-500">
-                <div class="text-xs text-slate-400 uppercase font-bold tracking-wider">Best Trade</div>
-                <div id="stat-best" class="text-2xl font-mono font-bold text-emerald-400 mt-2">-</div>
+            <div class="glass p-4 rounded-xl border-l-2 border-emerald-500">
+                <div class="text-[10px] text-slate-400 uppercase font-bold">Avg Win</div>
+                <div id="stat-avgwin" class="text-xl font-mono font-bold text-emerald-400 mt-1">-</div>
             </div>
-            <div class="glass p-5 rounded-xl border-t-2 border-red-500">
-                <div class="text-xs text-slate-400 uppercase font-bold tracking-wider">Worst Drawdown</div>
-                <div id="stat-worst" class="text-2xl font-mono font-bold text-red-400 mt-2">-</div>
+            <div class="glass p-4 rounded-xl border-l-2 border-red-500">
+                <div class="text-[10px] text-slate-400 uppercase font-bold">Avg Loss</div>
+                <div id="stat-avgloss" class="text-xl font-mono font-bold text-red-400 mt-1">-</div>
             </div>
         </div>
 
         <div class="glass rounded-xl overflow-hidden shadow-2xl">
-            <div class="overflow-x-auto">
-                <table class="w-full text-left text-sm">
-                    <thead class="bg-slate-900/80 text-xs uppercase font-bold text-slate-400 border-b border-slate-700">
-                        <tr>
-                            <th class="px-6 py-4">Open Time</th>
-                            <th class="px-6 py-4">Duration</th>
-                            <th class="px-6 py-4">Bot</th>
-                            <th class="px-6 py-4">Symbol</th>
-                            <th class="px-6 py-4 text-right">Entry</th>
-                            <th class="px-6 py-4 text-right">Net Profit</th>
-                            <th class="px-4 py-4 w-10"></th>
-                        </tr>
-                    </thead>
-                    <tbody id="journal-body" class="divide-y divide-slate-800 font-mono text-slate-300">
-                        <tr><td colspan="7" class="px-6 py-12 text-center text-slate-500 animate-pulse">Connecting to Neural Network...</td></tr>
-                    </tbody>
-                </table>
-            </div>
+            <table class="w-full text-left text-sm">
+                <thead class="bg-slate-900/90 text-[10px] uppercase font-bold text-slate-500 border-b border-slate-700">
+                    <tr>
+                        <th class="px-6 py-3">Timing / Bot</th>
+                        <th class="px-6 py-3">Trade Execution</th>
+                        <th class="px-6 py-3 text-right">Financials</th>
+                        <th class="w-8"></th>
+                    </tr>
+                </thead>
+                <tbody id="journal-body" class="divide-y divide-slate-800 font-mono text-slate-300">
+                    <tr><td colspan="4" class="px-6 py-12 text-center text-slate-500 animate-pulse">Syncing with Ledger...</td></tr>
+                </tbody>
+            </table>
         </div>
     </div>
 
     <script>
         async function loadJournal() {
             try {
-                // 1. Fetch Data
                 const res = await fetch(CSV_URL);
                 const text = await res.text();
                 
-                console.log("🔍 Raw Data Preview:", text.substring(0, 200)); // Debugging
-
-                // 2. Safety Check: Did we get HTML instead of CSV?
-                if (text.trim().startsWith("<!DOCTYPE") || text.includes("<html")) {
-                    throw new Error("Received HTML instead of CSV. Check your Google Sheet Link!");
-                }
-
-                // 3. Parse CSV (Handles newlines and commas better)
+                // Parse CSV
                 const rows = text.split('\n').map(row => row.split(','));
                 
-                // 4. Map & Filter Data
-                // Expected Columns from Google Script:
-                // [0]CloseTime, [1]Bot, [2]Sym, [3]Dir, [4]Profit, [5]OpenTime, [6]Duration, [7]Entry, [8]PID
+                // Map Data (Matching the Apps Script Order)
+                // A[0]:CloseTime, B[1]:Bot, C[2]:Sym, D[3]:Dir, E[4]:Net, F[5]:Open, 
+                // G[6]:Dur, H[7]:Entry, I[8]:Exit, J[9]:Gross, K[10]:Fees, L[11]:PID
                 const data = rows
-                    .slice(1) // Skip header
-                    .filter(r => r.length >= 8 && !isNaN(Date.parse(r[0]))) // Only keep rows with valid dates
+                    .slice(1) // Skip Header
+                    .filter(r => r.length >= 5 && !isNaN(Date.parse(r[0]))) 
                     .map((r, i) => ({
                         id: i,
                         closeTime: new Date(r[0]),
                         bot: clean(r[1]),
                         symbol: clean(r[2]),
                         dir: clean(r[3]),
-                        profit: parseFloat(r[4]) || 0,
+                        net: parseFloat(r[4]) || 0,
                         openTime: new Date(r[5]),
                         duration: clean(r[6]),
-                        entryPrice: parseFloat(r[7]) || 0,
-                        pid: clean(r[8])
+                        entry: parseFloat(r[7]) || 0,
+                        exit: parseFloat(r[8]) || 0,
+                        gross: parseFloat(r[9]) || 0,
+                        fees: parseFloat(r[10]) || 0,
+                        pid: clean(r[11])
                     }))
-                    .reverse(); // Show newest first
+                    .reverse();
 
-                if (data.length === 0) throw new Error("No valid trades found in CSV.");
-
+                if (data.length === 0) throw new Error("CSV Empty");
                 renderTable(data);
                 renderStats(data);
 
             } catch (err) {
-                console.error("🔥 Load Error:", err);
-                const msg = err.message.includes("HTML") 
-                    ? "Error: Link is returning a Webpage, not CSV. Use 'Publish to Web > CSV'." 
-                    : `Error: ${err.message}`;
-                
-                document.getElementById('journal-body').innerHTML = 
-                    `<tr><td colspan="7" class="px-6 py-8 text-center text-red-400 bg-red-500/10 border-l-4 border-red-500 font-bold">${msg}</td></tr>`;
+                console.error(err);
+                document.getElementById('journal-body').innerHTML = `<tr><td colspan="4" class="px-6 py-8 text-center text-red-400">Waiting for data... (Check CSV Link or Run Bot)</td></tr>`;
             }
         }
 
-        // Helper to remove quotes/spaces from CSV cells
-        function clean(str) {
-            return str ? str.replace(/['"]/g, '').trim() : '';
-        }
+        function clean(str) { return str ? str.replace(/['"]/g, '').trim() : ''; }
 
         function renderTable(trades) {
             const html = trades.map(t => {
-                const isWin = t.profit >= 0;
-                // Safe Date Formatting
-                const openDate = isNaN(t.openTime) ? '---' : t.openTime.toLocaleDateString('en-SG', {day:'2-digit', month:'short'});
-                const openTime = isNaN(t.openTime) ? '--:--' : t.openTime.toLocaleTimeString('en-SG', {hour:'2-digit', minute:'2-digit'});
-                const closeFull = isNaN(t.closeTime) ? '---' : t.closeTime.toLocaleString('en-SG');
+                const isWin = t.net >= 0;
+                const openStr = isNaN(t.openTime) ? '-' : t.openTime.toLocaleString('en-SG', {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
                 
                 return `
                 <tr class="hover:bg-white/5 transition group cursor-pointer border-l-2 border-transparent hover:border-blue-500" onclick="toggleDetails(${t.id})">
-                    <td class="px-6 py-4">
+                    
+                    <td class="px-6 py-4 align-top">
                         <div class="flex flex-col">
-                            <span class="text-white font-bold">${openDate}</span>
-                            <span class="text-xs text-slate-500">${openTime}</span>
+                            <span class="text-white font-bold text-xs">${openStr}</span>
+                            <span class="text-[10px] text-slate-500 mt-0.5">Dur: ${t.duration}</span>
+                            <span class="text-[10px] text-blue-400 mt-2 font-bold bg-blue-500/10 px-1.5 py-0.5 rounded w-fit border border-blue-500/20">${t.bot}</span>
                         </div>
                     </td>
-                    <td class="px-6 py-4 text-xs text-slate-400">
-                        <span class="bg-slate-800 px-2 py-1 rounded border border-slate-700">${t.duration}</span>
-                    </td>
-                    <td class="px-6 py-4 text-xs">
-                        <span class="text-blue-400 font-bold">${t.bot}</span>
-                    </td>
-                    <td class="px-6 py-4">
-                        <div class="flex items-center space-x-2">
-                            <span class="font-bold text-white">${t.symbol}</span>
-                            <span class="text-[10px] uppercase px-1.5 py-0.5 rounded font-bold ${t.dir==='Buy'?'bg-emerald-500/20 text-emerald-400':'bg-red-500/20 text-red-400'}">${t.dir}</span>
+
+                    <td class="px-6 py-4 align-top">
+                        <div class="flex flex-col">
+                            <div class="flex items-center space-x-2">
+                                <span class="font-bold text-white">${t.symbol}</span>
+                                <span class="text-[10px] uppercase px-1.5 py-0.5 rounded font-bold ${t.dir==='Buy'?'bg-emerald-500/20 text-emerald-400':'bg-red-500/20 text-red-400'}">${t.dir}</span>
+                            </div>
+                            <div class="text-xs text-slate-400 mt-2 flex items-center space-x-1">
+                                <span>${t.entry.toFixed(2)}</span>
+                                <span class="text-slate-600">➜</span>
+                                <span class="text-white">${t.exit > 0 ? t.exit.toFixed(2) : '---'}</span>
+                            </div>
                         </div>
                     </td>
-                    <td class="px-6 py-4 text-right text-slate-400">
-                        ${t.entryPrice.toFixed(2)}
+
+                    <td class="px-6 py-4 align-top text-right">
+                        <div class="flex flex-col items-end">
+                            <span class="text-lg font-bold ${isWin ? 'text-emerald-400' : 'text-red-400'}">
+                                ${isWin?'+':''}${t.net.toFixed(2)}
+                            </span>
+                            <span class="text-[10px] text-slate-500 mt-1">Gross: ${t.gross.toFixed(2)}</span>
+                        </div>
                     </td>
-                    <td class="px-6 py-4 text-right">
-                        <span class="font-bold text-lg ${isWin ? 'text-emerald-400' : 'text-red-400'}">
-                            ${isWin?'+':''}${t.profit.toFixed(2)}
-                        </span>
-                    </td>
-                    <td class="px-4 py-4 text-slate-600 text-center">
-                        <span id="arrow-${t.id}">▼</span>
-                    </td>
+
+                    <td class="px-2 py-4 text-center text-slate-600"><span id="arrow-${t.id}">▼</span></td>
                 </tr>
                 
                 <tr id="details-${t.id}" class="hidden receipt-row">
-                    <td colspan="7" class="p-6">
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-xs text-slate-400">
+                    <td colspan="4" class="p-6">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 text-xs">
                             <div>
-                                <div class="uppercase tracking-widest text-[10px] mb-1 text-slate-500 font-bold">Position ID</div>
-                                <div class="font-mono text-white select-all bg-black/30 p-2 rounded border border-slate-700/50">${t.pid || 'N/A'}</div>
-                            </div>
-                            <div>
-                                <div class="uppercase tracking-widest text-[10px] mb-1 text-slate-500 font-bold">Timing</div>
-                                <div class="grid grid-cols-2 gap-2">
-                                    <div>Open: <span class="text-slate-300">${t.openTime.toLocaleString()}</span></div>
-                                    <div>Close: <span class="text-slate-300">${closeFull}</span></div>
+                                <div class="uppercase tracking-widest text-[10px] mb-2 text-slate-500 font-bold">Identity</div>
+                                <div class="grid grid-cols-2 gap-y-1">
+                                    <span class="text-slate-400">PID:</span> <span class="text-white select-all font-mono">${t.pid}</span>
+                                    <span class="text-slate-400">Bot:</span> <span class="text-white">${t.bot}</span>
                                 </div>
                             </div>
-                            <div class="text-right">
-                                <div class="uppercase tracking-widest text-[10px] mb-1 text-slate-500 font-bold">Financials</div>
-                                <div class="space-y-1">
-                                    <div class="flex justify-between"><span>Entry:</span> <span class="text-white">${t.entryPrice}</span></div>
-                                    <div class="flex justify-between border-t border-slate-700/50 pt-1 mt-1"><span>Net PnL:</span> <span class="font-bold ${isWin?'text-emerald-400':'text-red-400'}">${isWin?'+':''}${t.profit.toFixed(2)}</span></div>
+                            <div>
+                                <div class="uppercase tracking-widest text-[10px] mb-2 text-slate-500 font-bold">P&L Breakdown</div>
+                                <div class="grid grid-cols-2 gap-y-1">
+                                    <span class="text-slate-400">Gross PnL:</span> <span class="text-slate-200">${t.gross.toFixed(2)}</span>
+                                    <span class="text-slate-400">Swap/Comm:</span> <span class="text-red-400">${t.fees.toFixed(2)}</span>
+                                    <span class="text-white font-bold border-t border-slate-700 mt-1 pt-1">Net PnL:</span> <span class="text-white font-bold border-t border-slate-700 mt-1 pt-1">${t.net.toFixed(2)}</span>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="uppercase tracking-widest text-[10px] mb-2 text-slate-500 font-bold">Timestamps</div>
+                                <div class="grid grid-cols-1 gap-y-1 text-slate-400">
+                                    <div>OPEN: <span class="text-slate-200">${t.openTime.toLocaleString()}</span></div>
+                                    <div>CLOSE: <span class="text-slate-200">${t.closeTime.toLocaleString()}</span></div>
                                 </div>
                             </div>
                         </div>
@@ -210,34 +194,28 @@
 
         function toggleDetails(id) {
             const row = document.getElementById(`details-${id}`);
-            const arrow = document.getElementById(`arrow-${id}`);
-            if (row.classList.contains('hidden')) {
-                row.classList.remove('hidden');
-                arrow.innerHTML = '▲';
-                arrow.classList.add('text-white');
-            } else {
-                row.classList.add('hidden');
-                arrow.innerHTML = '▼';
-                arrow.classList.remove('text-white');
-            }
+            document.getElementById(`arrow-${id}`).innerHTML = row.classList.contains('hidden') ? '▲' : '▼';
+            row.classList.toggle('hidden');
         }
 
         function renderStats(trades) {
-            const wins = trades.filter(t => t.profit > 0);
-            const totalPnL = trades.reduce((sum, t) => sum + t.profit, 0);
-            const winRate = trades.length > 0 ? ((wins.length / trades.length) * 100).toFixed(1) : '0.0';
+            const wins = trades.filter(t => t.net > 0);
+            const losses = trades.filter(t => t.net <= 0);
+            const totalPnL = trades.reduce((sum, t) => sum + t.net, 0);
             
-            const best = trades.length > 0 ? Math.max(...trades.map(t => t.profit)) : 0;
-            const worst = trades.length > 0 ? Math.min(...trades.map(t => t.profit)) : 0;
+            // Safe Stats
+            const winRate = trades.length ? ((wins.length/trades.length)*100).toFixed(1) + '%' : '-';
+            const avgWin = wins.length ? (wins.reduce((a,b)=>a+b.net,0)/wins.length).toFixed(2) : '0.00';
+            const avgLoss = losses.length ? (losses.reduce((a,b)=>a+b.net,0)/losses.length).toFixed(2) : '0.00';
 
             document.getElementById('stat-count').innerText = trades.length;
-            document.getElementById('stat-winrate').innerText = winRate + '%';
-            document.getElementById('stat-best').innerText = (best>0?'+':'') + best.toFixed(2);
-            document.getElementById('stat-worst').innerText = worst.toFixed(2);
+            document.getElementById('stat-winrate').innerText = winRate;
+            document.getElementById('stat-avgwin').innerText = '+' + avgWin;
+            document.getElementById('stat-avgloss').innerText = avgLoss;
             
             const pnlEl = document.getElementById('total-pnl');
             pnlEl.innerText = (totalPnL>=0?'+':'') + totalPnL.toFixed(2);
-            pnlEl.className = `text-3xl font-mono font-bold mt-1 ${totalPnL>=0?'text-emerald-400 drop-shadow-[0_0_10px_rgba(52,211,153,0.3)]':'text-red-400 drop-shadow-[0_0_10px_rgba(248,113,113,0.3)]'}`;
+            pnlEl.className = `text-xl font-mono font-bold ${totalPnL>=0?'text-emerald-400':'text-red-400'}`;
         }
 
         loadJournal();
