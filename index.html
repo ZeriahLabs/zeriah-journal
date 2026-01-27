@@ -79,23 +79,17 @@
             const result = [];
             let cell = '';
             let quote = false;
-            
             for (let i = 0; i < text.length; i++) {
                 const char = text[i];
-                if (char === '"') {
-                    quote = !quote;
-                } else if (char === ',' && !quote) {
-                    result.push(cell);
-                    cell = '';
-                } else {
-                    cell += char;
-                }
+                if (char === '"') quote = !quote;
+                else if (char === ',' && !quote) { result.push(cell); cell = ''; }
+                else cell += char;
             }
             result.push(cell);
             return result;
         }
 
-        // --- HELPER: Strict Date Parser (DD/MM/YYYY) ---
+        // --- HELPER: Smart Date Parser (Auto-detects US vs UK) ---
         function parseDate(dateStr) {
             if (!dateStr || typeof dateStr !== 'string') return null;
             const cleanStr = dateStr.trim().replace(/"/g, ''); 
@@ -108,14 +102,28 @@
                 if (datePart.includes('/')) {
                     const dateComps = datePart.split('/');
                     if (dateComps.length === 3) {
-                        const day = parseInt(dateComps[0], 10);
-                        const month = parseInt(dateComps[1], 10) - 1;
-                        const year = parseInt(dateComps[2], 10);
-                        
+                        let day, month, year;
+                        const p0 = parseInt(dateComps[0], 10);
+                        const p1 = parseInt(dateComps[1], 10);
+                        const p2 = parseInt(dateComps[2], 10);
+
+                        // LOGIC: Identify which part is the Day vs Month
+                        if (p1 > 12) {
+                            // Middle number > 12? It must be US Format (MM/DD/YYYY)
+                            month = p0 - 1;
+                            day = p1;
+                        } else {
+                            // Otherwise, assume standard UK/International (DD/MM/YYYY)
+                            // (Or fallback to browser default if ambiguous)
+                            day = p0;
+                            month = p1 - 1;
+                        }
+                        year = p2;
+
+                        // Parse Time
                         const timeComps = timePart.split(':');
                         const hour = parseInt(timeComps[0], 10) || 0;
                         const min = parseInt(timeComps[1], 10) || 0;
-                        
                         let sec = 0; 
                         if (timeComps[2]) sec = parseInt(timeComps[2].split('.')[0], 10);
 
@@ -123,6 +131,7 @@
                         if (!isNaN(dt.getTime())) return dt;
                     }
                 }
+                // Fallback for ISO dates (YYYY-MM-DD)
                 const fallback = new Date(cleanStr);
                 return isNaN(fallback.getTime()) ? null : fallback;
             } catch (e) { return null; }
