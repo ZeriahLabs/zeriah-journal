@@ -1,4 +1,80 @@
-<script>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zeriah Journal | Pro Audit</title>
+    <link rel="icon" href="https://fav.farm/🤖" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #0b1120; color: #e2e8f0; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.05); }
+        .receipt-row { background-color: #0f172a; box-shadow: inset 0 4px 6px -1px rgba(0, 0, 0, 0.3); }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8 selection:bg-blue-500/30">
+
+    <script>
+        // 👇 ENSURE THIS IS YOUR "OUTPUT=CSV" LINK
+        const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRcnTRz38nIVh9_GlvL5lfXquWCQm3iSm6CIe2Dm63aJzOnr2-63gk8p8VTJz-M8fULNM_dwj0c1N5w/pub?gid=0&single=true&output=csv"; 
+    </script>
+
+    <div class="max-w-7xl mx-auto space-y-6">
+        
+        <header class="flex flex-col md:flex-row justify-between items-start md:items-end border-b border-slate-800 pb-6 gap-4">
+            <div>
+                <a href="https://invest.zeriahlabs.com" class="text-[10px] font-bold text-blue-500 uppercase tracking-widest hover:text-blue-400 transition mb-1 inline-block">← Zeriah Labs</a>
+                <h1 class="text-3xl font-extrabold text-white tracking-tight">Algo Audit Trail</h1>
+                <p class="text-slate-500 text-sm mt-1">Verified execution log (Manual Upload).</p>
+            </div>
+            <div class="flex gap-4">
+                 <div class="bg-slate-900 px-4 py-2 rounded-lg border border-slate-700 text-right">
+                    <div class="text-[10px] text-slate-500 uppercase font-bold">Net PnL</div>
+                    <div id="total-pnl" class="text-xl font-mono font-bold text-white">---</div>
+                    <div id="last-sync" class="text-[9px] text-slate-600 mt-1 text-right font-mono">Syncing...</div>
+                </div>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="glass p-4 rounded-xl border-l-2 border-blue-500">
+                <div class="text-[10px] text-slate-400 uppercase font-bold">Trades</div>
+                <div id="stat-count" class="text-xl font-mono font-bold text-white mt-1">-</div>
+            </div>
+            <div class="glass p-4 rounded-xl border-l-2 border-purple-500">
+                <div class="text-[10px] text-slate-400 uppercase font-bold">Win Rate</div>
+                <div id="stat-winrate" class="text-xl font-mono font-bold text-white mt-1">-</div>
+            </div>
+            <div class="glass p-4 rounded-xl border-l-2 border-emerald-500">
+                <div class="text-[10px] text-slate-400 uppercase font-bold">Avg Win</div>
+                <div id="stat-avgwin" class="text-xl font-mono font-bold text-emerald-400 mt-1">-</div>
+            </div>
+            <div class="glass p-4 rounded-xl border-l-2 border-red-500">
+                <div class="text-[10px] text-slate-400 uppercase font-bold">Avg Loss</div>
+                <div id="stat-avgloss" class="text-xl font-mono font-bold text-red-400 mt-1">-</div>
+            </div>
+        </div>
+
+        <div class="glass rounded-xl overflow-hidden shadow-2xl">
+            <table class="w-full text-left text-sm">
+                <thead class="bg-slate-900/90 text-[10px] uppercase font-bold text-slate-500 border-b border-slate-700">
+                    <tr>
+                        <th class="px-6 py-3">Timing / Bot</th>
+                        <th class="px-6 py-3">Trade Execution</th>
+                        <th class="px-6 py-3 text-right">Financials</th>
+                        <th class="w-8"></th>
+                    </tr>
+                </thead>
+                <tbody id="journal-body" class="divide-y divide-slate-800 font-mono text-slate-300">
+                    <tr><td colspan="4" class="px-6 py-12 text-center text-slate-500 animate-pulse">Loading Ledger...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
         // --- HELPER: Strict Date Parser (DD/MM/YYYY) ---
         function parseDate(dateStr) {
             if (!dateStr || typeof dateStr !== 'string') return null;
@@ -184,3 +260,5 @@
         
         loadJournal();
     </script>
+</body>
+</html>
