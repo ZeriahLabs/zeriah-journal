@@ -18,7 +18,7 @@
 
     <script>
         // 👇 ENSURE THIS IS YOUR "OUTPUT=CSV" LINK
-        const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRcnTRz38nIVh9_GlvL5lfXquWCQm3iSm6CIe2Dm63aJzOnr2-63gk8p8VTJz-M8fULNM_dwj0c1N5w/pub?gid=0&single=true&output=csv"; 
+        const CSV_URL = "PASTE_YOUR_GOOGLE_CSV_LINK_HERE"; 
     </script>
 
     <div class="max-w-7xl mx-auto space-y-6">
@@ -27,13 +27,13 @@
             <div>
                 <a href="https://invest.zeriahlabs.com" class="text-[10px] font-bold text-blue-500 uppercase tracking-widest hover:text-blue-400 transition mb-1 inline-block">← Zeriah Labs</a>
                 <h1 class="text-3xl font-extrabold text-white tracking-tight">Algo Audit Trail</h1>
-                <p class="text-slate-500 text-sm mt-1">Live execution verification.</p>
+                <p class="text-slate-500 text-sm mt-1">Verified execution log (Manual Upload).</p>
             </div>
             <div class="flex gap-4">
                  <div class="bg-slate-900 px-4 py-2 rounded-lg border border-slate-700 text-right">
                     <div class="text-[10px] text-slate-500 uppercase font-bold">Net PnL</div>
                     <div id="total-pnl" class="text-xl font-mono font-bold text-white">---</div>
-                     <div id="last-sync" class="text-[9px] text-slate-600 mt-1 text-right font-mono">Syncing...</div>
+                    <div id="last-sync" class="text-[9px] text-slate-600 mt-1 text-right font-mono">Syncing...</div>
                 </div>
             </div>
         </header>
@@ -68,45 +68,74 @@
                     </tr>
                 </thead>
                 <tbody id="journal-body" class="divide-y divide-slate-800 font-mono text-slate-300">
-                    <tr><td colspan="4" class="px-6 py-12 text-center text-slate-500 animate-pulse">Syncing with Ledger...</td></tr>
+                    <tr><td colspan="4" class="px-6 py-12 text-center text-slate-500 animate-pulse">Loading Ledger...</td></tr>
                 </tbody>
             </table>
         </div>
     </div>
 
     <script>
+        // --- HELPER: Safe Date Parser for DD/MM/YYYY ---
+        function parseDate(dateStr) {
+            if (!dateStr) return new Date("Invalid");
+            // If format is DD/MM/YYYY, JS might read as MM/DD/YYYY. Swap it.
+            if (dateStr.includes('/')) {
+                const parts = dateStr.split(' ');
+                const dateParts = parts[0].split('/');
+                if (dateParts[0].length === 2 && parseInt(dateParts[0]) > 12) {
+                    // It's definitely DD/MM if first part > 12. Safe to keep standard parsing logic for modern browsers,
+                    // but safer to force ISO format: YYYY-MM-DD
+                    // Reconstruct to YYYY-MM-DDTHH:mm:ss
+                    const iso = `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}T${parts[1] || '00:00:00'}`;
+                    return new Date(iso);
+                }
+            }
+            return new Date(dateStr);
+        }
+
+        // --- HELPER: Duration Calc ---
+        function getDuration(start, end) {
+            if (isNaN(start) || isNaN(end)) return "-";
+            const diffMs = end - start;
+            const diffMins = Math.floor(diffMs / 60000);
+            const hours = Math.floor(diffMins / 60);
+            const mins = diffMins % 60;
+            return `${hours}h ${mins}m`;
+        }
+
         async function loadJournal() {
             try {
                 const res = await fetch(CSV_URL + "&t=" + new Date().getTime()); 
                 const text = await res.text();
                 
-                // Parse CSV
                 const rows = text.split('\n').map(row => row.split(','));
                 const now = new Date();
                 document.getElementById('last-sync').innerText = "Synced: " + now.toLocaleTimeString();
-                
-                // Map Data (Matching the Apps Script Order)
-                // A[0]:CloseTime, B[1]:Bot, C[2]:Sym, D[3]:Dir, E[4]:Net, F[5]:Open, 
-                // G[6]:Dur, H[7]:Entry, I[8]:Exit, J[9]:Gross, K[10]:Fees, L[11]:PID
+
+                // MAP THE COLUMNS (Based on cTrader Export)
+                // 0:Symbol, 1:Dir, 2:OpenTime, 3:CloseTime, 4:Entry, 5:Exit, 6:Qty, 7:Vol, 8:NetSGD, 9:Bal, 10:Label
                 const data = rows
                     .slice(1) // Skip Header
-                    .filter(r => r.length >= 5 && !isNaN(Date.parse(r[0]))) 
-                    .map((r, i) => ({
-                        id: i,
-                        closeTime: new Date(r[0]),
-                        bot: clean(r[1]),
-                        symbol: clean(r[2]),
-                        dir: clean(r[3]),
-                        net: parseFloat(r[4]) || 0,
-                        openTime: new Date(r[5]),
-                        duration: clean(r[6]),
-                        entry: parseFloat(r[7]) || 0,
-                        exit: parseFloat(r[8]) || 0,
-                        gross: parseFloat(r[9]) || 0,
-                        fees: parseFloat(r[10]) || 0,
-                        pid: clean(r[11])
-                    }))
-                    .reverse();
+                    .filter(r => r.length >= 8 && r[0]) 
+                    .map((r, i) => {
+                        const openT = parseDate(clean(r[2]));
+                        const closeT = parseDate(clean(r[3]));
+                        
+                        return {
+                            id: i,
+                            symbol: clean(r[0]),
+                            dir: clean(r[1]),
+                            openTime: openT,
+                            closeTime: closeT,
+                            duration: getDuration(openT, closeT),
+                            entry: parseFloat(r[4]) || 0,
+                            exit: parseFloat(r[5]) || 0,
+                            net: parseFloat(r[8]) || 0,
+                            bot: clean(r[10]) || 'Manual/Unknown',
+                            pid: `TRD-${1000+i}` // Fake ID since export has none
+                        };
+                    })
+                    .sort((a,b) => b.closeTime - a.closeTime); // Sort Newest First
 
                 if (data.length === 0) throw new Error("CSV Empty");
                 renderTable(data);
@@ -114,7 +143,7 @@
 
             } catch (err) {
                 console.error(err);
-                document.getElementById('journal-body').innerHTML = `<tr><td colspan="4" class="px-6 py-8 text-center text-red-400">Waiting for data... (Check CSV Link or Run Bot)</td></tr>`;
+                document.getElementById('journal-body').innerHTML = `<tr><td colspan="4" class="px-6 py-8 text-center text-red-400">Waiting for data... (Check CSV Link)</td></tr>`;
             }
         }
 
@@ -155,7 +184,7 @@
                             <span class="text-lg font-bold ${isWin ? 'text-emerald-400' : 'text-red-400'}">
                                 ${isWin?'+':''}${t.net.toFixed(2)}
                             </span>
-                            <span class="text-[10px] text-slate-500 mt-1">Gross: ${t.gross.toFixed(2)}</span>
+                            <span class="text-[10px] text-slate-500 mt-1">SGD</span>
                         </div>
                     </td>
 
@@ -168,16 +197,8 @@
                             <div>
                                 <div class="uppercase tracking-widest text-[10px] mb-2 text-slate-500 font-bold">Identity</div>
                                 <div class="grid grid-cols-2 gap-y-1">
-                                    <span class="text-slate-400">PID:</span> <span class="text-white select-all font-mono">${t.pid}</span>
+                                    <span class="text-slate-400">ID:</span> <span class="text-white select-all font-mono">${t.pid}</span>
                                     <span class="text-slate-400">Bot:</span> <span class="text-white">${t.bot}</span>
-                                </div>
-                            </div>
-                            <div>
-                                <div class="uppercase tracking-widest text-[10px] mb-2 text-slate-500 font-bold">P&L Breakdown</div>
-                                <div class="grid grid-cols-2 gap-y-1">
-                                    <span class="text-slate-400">Gross PnL:</span> <span class="text-slate-200">${t.gross.toFixed(2)}</span>
-                                    <span class="text-slate-400">Swap/Comm:</span> <span class="text-red-400">${t.fees.toFixed(2)}</span>
-                                    <span class="text-white font-bold border-t border-slate-700 mt-1 pt-1">Net PnL:</span> <span class="text-white font-bold border-t border-slate-700 mt-1 pt-1">${t.net.toFixed(2)}</span>
                                 </div>
                             </div>
                             <div>
@@ -185,6 +206,12 @@
                                 <div class="grid grid-cols-1 gap-y-1 text-slate-400">
                                     <div>OPEN: <span class="text-slate-200">${t.openTime.toLocaleString()}</span></div>
                                     <div>CLOSE: <span class="text-slate-200">${t.closeTime.toLocaleString()}</span></div>
+                                </div>
+                            </div>
+                             <div>
+                                <div class="uppercase tracking-widest text-[10px] mb-2 text-slate-500 font-bold">Result</div>
+                                <div class="grid grid-cols-2 gap-y-1">
+                                     <span class="text-white font-bold border-t border-slate-700 mt-1 pt-1">Net PnL:</span> <span class="text-white font-bold border-t border-slate-700 mt-1 pt-1">${t.net.toFixed(2)} SGD</span>
                                 </div>
                             </div>
                         </div>
@@ -206,7 +233,6 @@
             const losses = trades.filter(t => t.net <= 0);
             const totalPnL = trades.reduce((sum, t) => sum + t.net, 0);
             
-            // Safe Stats
             const winRate = trades.length ? ((wins.length/trades.length)*100).toFixed(1) + '%' : '-';
             const avgWin = wins.length ? (wins.reduce((a,b)=>a+b.net,0)/wins.length).toFixed(2) : '0.00';
             const avgLoss = losses.length ? (losses.reduce((a,b)=>a+b.net,0)/losses.length).toFixed(2) : '0.00';
