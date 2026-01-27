@@ -79,22 +79,46 @@
         function parseDate(dateStr) {
             if (!dateStr || typeof dateStr !== 'string') return null;
             
+            // Clean up the string (remove extra spaces)
+            const cleanStr = dateStr.trim();
+
             try {
-                // Handle "01/01/2026 00:30:00" format from cTrader
-                const parts = dateStr.trim().split(' ');
-                const dateParts = parts[0].split('/');
-                
-                // If we have Day/Month/Year components
-                if (dateParts.length === 3) {
-                    const day = dateParts[0].padStart(2, '0');
-                    const month = dateParts[1].padStart(2, '0');
-                    const year = dateParts[2];
-                    const time = parts[1] || '00:00:00';
-                    
-                    // Construct ISO format: YYYY-MM-DDTHH:mm:ss
-                    return new Date(`${year}-${month}-${day}T${time}`);
+                // Strategy 1: Try Manual DD/MM/YYYY parsing (Most reliable for cTrader export)
+                // cTrader Format: "01/01/2026 00:30:00" OR "01/01/2026"
+                const parts = cleanStr.split(' '); // Split Date and Time
+                const datePart = parts[0];
+                const timePart = parts[1] || '00:00:00';
+
+                if (datePart.includes('/')) {
+                    const dateComps = datePart.split('/');
+                    if (dateComps.length === 3) {
+                        // Assuming DD/MM/YYYY
+                        const day = parseInt(dateComps[0], 10);
+                        const month = parseInt(dateComps[1], 10) - 1; // JS Months are 0-11
+                        const year = parseInt(dateComps[2], 10);
+                        
+                        // Split Time HH:MM:SS.ms
+                        const timeComps = timePart.split(':');
+                        const hour = parseInt(timeComps[0], 10) || 0;
+                        const min = parseInt(timeComps[1], 10) || 0;
+                        
+                        // Handle seconds and milliseconds if present
+                        let sec = 0, ms = 0;
+                        if (timeComps[2]) {
+                             const secParts = timeComps[2].split('.');
+                             sec = parseInt(secParts[0], 10);
+                             ms = secParts[1] ? parseInt(secParts[1], 10) : 0;
+                        }
+
+                        const dt = new Date(year, month, day, hour, min, sec, ms);
+                        if (!isNaN(dt.getTime())) return dt;
+                    }
                 }
-                return new Date(dateStr); // Fallback
+
+                // Strategy 2: Fallback to Browser Default (good for YYYY-MM-DD)
+                const fallback = new Date(cleanStr);
+                return isNaN(fallback.getTime()) ? null : fallback;
+
             } catch (e) {
                 return null;
             }
@@ -102,8 +126,10 @@
 
         // --- HELPER: Duration Calc ---
         function getDuration(start, end) {
-            if (!start || !end || isNaN(start) || isNaN(end)) return "-";
+            if (!start || !end || isNaN(start.getTime()) || isNaN(end.getTime())) return "-";
             const diffMs = end - start;
+            if (diffMs < 0) return "0m"; // Handle rare edge case where close < open
+            
             const diffMins = Math.floor(diffMs / 60000);
             const hours = Math.floor(diffMins / 60);
             const mins = diffMins % 60;
@@ -114,26 +140,25 @@
 
         async function loadJournal() {
             try {
-                // Fetch CSV with cache busting
                 const res = await fetch(CSV_URL + "&t=" + new Date().getTime()); 
                 const text = await res.text();
                 
                 const rows = text.split('\n').map(row => row.split(','));
                 
-                // Update Sync Time
                 const now = new Date();
                 document.getElementById('last-sync').innerText = "Synced: " + now.toLocaleTimeString();
 
                 const data = rows
                     .slice(1) // Skip Header
                     .filter(r => {
-                        // FILTER: Ignore empty rows AND the "Ghost Row" (comments)
-                        return r.length >= 8 && r[0] && !r[0].startsWith('//');
+                        // FILTER: Check if row has enough columns AND a valid Date string in Col 3 (OpenTime)
+                        return r.length >= 8 && r[2] && r[2].length > 5 && !r[0].startsWith('//');
                     }) 
                     .map((r, i) => {
                         const openT = parseDate(clean(r[2]));
                         const closeT = parseDate(clean(r[3]));
-                        
+                        const rawLabel = clean(r[10]);
+
                         return {
                             id: i,
                             symbol: clean(r[0]),
@@ -144,15 +169,20 @@
                             entry: parseFloat(r[4]) || 0,
                             exit: parseFloat(r[5]) || 0,
                             net: parseFloat(r[8]) || 0,
-                            bot: clean(r[10]) || 'Manual/Unknown',
+                            // RENAME: If label is empty, call it "Manual Trade"
+                            bot: (rawLabel === "" || rawLabel === undefined) ? 'Manual Trade' : rawLabel,
                             pid: `TRD-${1000+i}`
                         };
                     })
-                    // Filter out rows where Date failed to parse
-                    .filter(t => t.openTime && !isNaN(t.openTime))
-                    .sort((a,b) => b.closeTime - a.closeTime); // Newest first
+                    // Filter out rows where Date failed to parse entirely
+                    .filter(t => t.openTime !== null)
+                    .sort((a,b) => b.closeTime - a.closeTime);
 
-                if (data.length === 0) throw new Error("No valid trades found. Check Date Format.");
+                if (data.length === 0) throw new Error("No valid trades found. Check CSV Date Format.");
+                
+                // Debugging: Log count to console
+                console.log(`✅ Loaded ${data.length} trades.`);
+                
                 renderTable(data);
                 renderStats(data);
 
@@ -162,12 +192,10 @@
             }
         }
 
-        // ... [keep renderTable and renderStats functions exactly as they were] ...
-        
+        // [Keep renderTable and renderStats functions exactly as they were]
         function renderTable(trades) {
             const html = trades.map(t => {
                 const isWin = t.net >= 0;
-                // Safe date formatting
                 const openStr = t.openTime ? t.openTime.toLocaleString('en-SG', {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'}) : '-';
                 
                 return `
@@ -215,8 +243,8 @@
                             <div>
                                 <div class="uppercase tracking-widest text-[10px] mb-2 text-slate-500 font-bold">Timestamps</div>
                                 <div class="grid grid-cols-1 gap-y-1 text-slate-400">
-                                    <div>OPEN: <span class="text-slate-200">${t.openTime.toLocaleString()}</span></div>
-                                    <div>CLOSE: <span class="text-slate-200">${t.closeTime.toLocaleString()}</span></div>
+                                    <div>OPEN: <span class="text-slate-200">${t.openTime ? t.openTime.toLocaleString() : '-'}</span></div>
+                                    <div>CLOSE: <span class="text-slate-200">${t.closeTime ? t.closeTime.toLocaleString() : '-'}</span></div>
                                 </div>
                             </div>
                              <div>
