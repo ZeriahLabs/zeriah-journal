@@ -18,7 +18,7 @@
 
     <script>
         // 👇 ENSURE THIS IS YOUR "OUTPUT=CSV" LINK
-        const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRcnTRz38nIVh9_GlvL5lfXquWCQm3iSm6CIe2Dm63aJzOnr2-63gk8p8VTJz-M8fULNM_dwj0c1N5w/pub?gid=0&single=true&output=csv"; 
+        const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRcnTRz38nIVh9_GlvL5lfXquWCQm3iSm6CIe2Dm63aJzOnr2-63gk8p8VTJz-M8fULNM_dwj0c1N5w/pub?gid=0&single=true&output=csv";  
     </script>
 
     <div class="max-w-7xl mx-auto space-y-6">
@@ -33,7 +33,6 @@
                  <div class="bg-slate-900 px-4 py-2 rounded-lg border border-slate-700 text-right">
                     <div class="text-[10px] text-slate-500 uppercase font-bold">Net PnL</div>
                     <div id="total-pnl" class="text-xl font-mono font-bold text-white">---</div>
-                    <div id="last-sync" class="text-[9px] text-slate-600 mt-1 text-right font-mono">Syncing...</div>
                 </div>
             </div>
         </header>
@@ -75,7 +74,7 @@
     </div>
 
     <script>
-        // --- HELPER: Smart CSV Line Parser (Handles "1,000" commas) ---
+        // --- HELPER: Smart CSV Line Parser ---
         function parseCSVLine(text) {
             const result = [];
             let cell = '';
@@ -84,22 +83,22 @@
             for (let i = 0; i < text.length; i++) {
                 const char = text[i];
                 if (char === '"') {
-                    quote = !quote; // Toggle quote state
+                    quote = !quote;
                 } else if (char === ',' && !quote) {
-                    result.push(cell); // Comma outside quotes = new cell
+                    result.push(cell);
                     cell = '';
                 } else {
-                    cell += char; // Add character to cell
+                    cell += char;
                 }
             }
-            result.push(cell); // Add last cell
+            result.push(cell);
             return result;
         }
 
         // --- HELPER: Strict Date Parser (DD/MM/YYYY) ---
         function parseDate(dateStr) {
             if (!dateStr || typeof dateStr !== 'string') return null;
-            const cleanStr = dateStr.trim().replace(/"/g, ''); // Remove quotes if any
+            const cleanStr = dateStr.trim().replace(/"/g, ''); 
 
             try {
                 const parts = cleanStr.split(' ');
@@ -140,21 +139,23 @@
             return `${hours}h ${mins}m`;
         }
 
+        // --- HELPER: Money Formatter ---
+        function formatMoney(num) {
+            return num.toLocaleString('en-SG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
         function clean(str) { return str ? str.replace(/['"]/g, '').trim() : ''; }
-        function cleanNum(str) { return parseFloat(str ? str.replace(/['",]/g, '') : 0); } // Remove commas for parsing numbers
+        function cleanNum(str) { return parseFloat(str ? str.replace(/['",]/g, '') : 0); }
 
         async function loadJournal() {
             try {
                 const res = await fetch(CSV_URL + "&t=" + new Date().getTime()); 
                 const text = await res.text();
-                const rows = text.split('\n'); // Split lines only
-                
-                const now = new Date();
-                document.getElementById('last-sync').innerText = "Synced: " + now.toLocaleTimeString();
+                const rows = text.split('\n');
 
                 const data = rows
                     .slice(1) // Skip Header
-                    .map(rowStr => parseCSVLine(rowStr)) // USE SMART PARSER HERE
+                    .map(rowStr => parseCSVLine(rowStr)) 
                     .filter(r => r.length >= 8 && r[2] && r[2].length > 5 && !r[0].startsWith('//')) 
                     .map((r, i) => {
                         const openT = parseDate(clean(r[2]));
@@ -168,7 +169,7 @@
                             openTime: openT,
                             closeTime: closeT,
                             duration: getDuration(openT, closeT),
-                            entry: cleanNum(r[4]), // Use cleanNum to handle "6,000.00"
+                            entry: cleanNum(r[4]),
                             exit: cleanNum(r[5]),
                             net: cleanNum(r[8]),
                             bot: (rawLabel === "" || rawLabel === undefined) ? 'Manual Trade' : rawLabel,
@@ -188,8 +189,6 @@
             }
         }
 
-        // ... [keep renderTable and renderStats functions EXACTLY as they are] ...
-        
         function renderTable(trades) {
             const html = trades.map(t => {
                 const isWin = t.net >= 0;
@@ -220,7 +219,7 @@
                     <td class="px-6 py-4 align-top text-right">
                         <div class="flex flex-col items-end">
                             <span class="text-lg font-bold ${isWin ? 'text-emerald-400' : 'text-red-400'}">
-                                ${isWin?'+':''}${t.net.toFixed(2)}
+                                ${isWin?'+':''}${formatMoney(t.net)}
                             </span>
                             <span class="text-[10px] text-slate-500 mt-1">SGD</span>
                         </div>
@@ -247,7 +246,7 @@
                              <div>
                                 <div class="uppercase tracking-widest text-[10px] mb-2 text-slate-500 font-bold">Result</div>
                                 <div class="grid grid-cols-2 gap-y-1">
-                                     <span class="text-white font-bold border-t border-slate-700 mt-1 pt-1">Net PnL:</span> <span class="text-white font-bold border-t border-slate-700 mt-1 pt-1">${t.net.toFixed(2)} SGD</span>
+                                     <span class="text-white font-bold border-t border-slate-700 mt-1 pt-1">Net PnL:</span> <span class="text-white font-bold border-t border-slate-700 mt-1 pt-1">${formatMoney(t.net)} SGD</span>
                                 </div>
                             </div>
                         </div>
@@ -275,11 +274,11 @@
 
             document.getElementById('stat-count').innerText = trades.length;
             document.getElementById('stat-winrate').innerText = winRate;
-            document.getElementById('stat-avgwin').innerText = '+' + avgWin;
-            document.getElementById('stat-avgloss').innerText = avgLoss;
+            document.getElementById('stat-avgwin').innerText = '+' + formatMoney(parseFloat(avgWin));
+            document.getElementById('stat-avgloss').innerText = formatMoney(parseFloat(avgLoss));
             
             const pnlEl = document.getElementById('total-pnl');
-            pnlEl.innerText = (totalPnL>=0?'+':'') + totalPnL.toFixed(2);
+            pnlEl.innerText = (totalPnL>=0?'+':'') + formatMoney(totalPnL);
             pnlEl.className = `text-xl font-mono font-bold ${totalPnL>=0?'text-emerald-400':'text-red-400'}`;
         }
         
