@@ -82,7 +82,7 @@
     </div>
 
     <script>
-        // --- HELPER: Smart CSV Parser ---
+        // --- HELPER: CSV Parser ---
         function parseCSVLine(text) {
             const result = [];
             let cell = '';
@@ -97,39 +97,33 @@
             return result;
         }
 
-        // --- HELPER: STRICT UK Date Parser (DD/MM/YYYY) ---
+        // --- HELPER: STRICT DATE PARSER (DD/MM/YYYY) ---
         function parseDate(dateStr) {
             if (!dateStr || typeof dateStr !== 'string') return null;
             const cleanStr = dateStr.trim().replace(/"/g, ''); 
 
             try {
-                // If it contains a slash, FORCE DD/MM/YYYY
-                if (cleanStr.includes('/')) {
-                    const parts = cleanStr.split(' ');
-                    const datePart = parts[0];
-                    const timePart = parts[1] || '00:00:00';
-                    const dateComps = datePart.split('/');
-                    
-                    if (dateComps.length === 3) {
-                        const day = parseInt(dateComps[0], 10);
-                        const month = parseInt(dateComps[1], 10) - 1; // JS months are 0-11
-                        const year = parseInt(dateComps[2], 10);
-                        
-                        // Time
-                        const timeComps = timePart.split(':');
-                        const hour = parseInt(timeComps[0], 10) || 0;
-                        const min = parseInt(timeComps[1], 10) || 0;
-                        let sec = 0; 
-                        if (timeComps[2]) sec = parseInt(timeComps[2].split('.')[0], 10);
+                // Split "19/11/2025" and "23:11:23.795"
+                const parts = cleanStr.split(' ');
+                const datePart = parts[0];
+                const timePart = parts[1] || '00:00:00';
 
-                        const dt = new Date(year, month, day, hour, min, sec);
-                        if (!isNaN(dt.getTime())) return dt;
-                    }
-                }
+                // Parse Date (DD/MM/YYYY)
+                const dParts = datePart.split('/');
+                if (dParts.length !== 3) return null; // Must have 3 parts
                 
-                // Fallback for YYYY-MM-DD
-                const fallback = new Date(cleanStr);
-                return isNaN(fallback.getTime()) ? null : fallback;
+                const day = parseInt(dParts[0], 10);
+                const month = parseInt(dParts[1], 10) - 1; // Month is 0-indexed in JS
+                const year = parseInt(dParts[2], 10);
+
+                // Parse Time (HH:MM:SS) - ignore milliseconds to prevent errors
+                const tParts = timePart.split(':');
+                const hour = parseInt(tParts[0], 10) || 0;
+                const min = parseInt(tParts[1], 10) || 0;
+                const sec = parseInt(tParts[2] || "0", 10); 
+
+                const dt = new Date(year, month, day, hour, min, sec);
+                return isNaN(dt.getTime()) ? null : dt;
             } catch (e) { return null; }
         }
 
