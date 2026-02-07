@@ -226,6 +226,7 @@ CRITICAL ERROR: No valid trades found.
             }
         }
 
+        // --- CHART RENDERER (Updated for $10k/$1M Scaling) ---
         let balanceChartInstance = null;
         function renderChart(trades) {
             const ctx = document.getElementById('balanceChart').getContext('2d');
@@ -253,12 +254,24 @@ CRITICAL ERROR: No valid trades found.
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    layout: {
+                        padding: { left: 0, right: 0, top: 0, bottom: 0 }
+                    },
                     plugins: { legend: { display: false } },
                     scales: {
                         x: { display: false, grid: { display: false } },
                         y: { 
                             grid: { color: 'rgba(255, 255, 255, 0.05)' },
-                            ticks: { color: '#64748b', font: { family: "'JetBrains Mono'", size: 10 } } 
+                            ticks: { 
+                                color: '#64748b', 
+                                font: { family: "'JetBrains Mono'", size: 10 },
+                                // 👇 SMART SCALING LOGIC
+                                callback: function(value) {
+                                    if (value >= 1000000) return '$' + (value/1000000).toFixed(1) + 'M'; // $1.2M
+                                    if (value >= 1000) return '$' + (value/1000).toFixed(0) + 'k';    // $10k
+                                    return '$' + value;                                              // $500
+                                }
+                            } 
                         }
                     },
                     interaction: { mode: 'nearest', axis: 'x', intersect: false }
