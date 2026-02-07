@@ -38,7 +38,7 @@
             </div>
         </header>
 
-        <div id="debug-box" class="hidden bg-red-900/20 border border-red-500/50 p-4 rounded-xl text-xs font-mono text-red-200 overflow-auto max-h-64 whitespace-pre-wrap"></div>
+        <div id="debug-box" class="hidden bg-red-900/20 border border-red-500/50 p-4 rounded-xl text-xs font-mono text-red-200 overflow-auto max-h-64 whitespace-pre-wrap select-all"></div>
 
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div class="glass p-4 rounded-xl border-l-2 border-blue-500">
@@ -84,64 +84,51 @@
     </div>
 
     <script>
-        // --- HELPER: Smart CSV Parser ---
-        function parseCSVLine(text) {
+        // --- HELPER: Universal CSV Parser (Detects , or ; or \t) ---
+        function parseCSVLine(text, delimiter) {
             const result = [];
             let cell = '';
             let quote = false;
             for (let i = 0; i < text.length; i++) {
                 const char = text[i];
                 if (char === '"') quote = !quote;
-                else if (char === ',' && !quote) { result.push(cell); cell = ''; }
+                else if (char === delimiter && !quote) { result.push(cell); cell = ''; }
                 else cell += char;
             }
             result.push(cell);
             return result;
         }
 
-        // --- HELPER: Universal Date Parser ---
+        // --- HELPER: Strict Date Parser (DD/MM/YYYY) ---
         function parseDate(dateStr) {
             if (!dateStr || typeof dateStr !== 'string') return null;
             const cleanStr = dateStr.trim().replace(/"/g, ''); 
 
             try {
-                // 1. Try DD/MM/YYYY HH:MM:SS (Strict UK)
-                // Looks for: "19/11/2025" or "19/11/2025 23:11:23"
+                // Strict cTrader/Sheet Format: "19/11/2025 23:11:23.795"
                 if (cleanStr.includes('/')) {
                     const parts = cleanStr.split(' ');
-                    const dParts = parts[0].split('/');
+                    const datePart = parts[0];
+                    const timePart = parts[1] || '00:00:00';
+                    const dateComps = datePart.split('/');
                     
-                    // If we have 3 parts (Day, Month, Year)
-                    if (dParts.length === 3) {
-                        const p0 = parseInt(dParts[0], 10);
-                        const p1 = parseInt(dParts[1], 10);
-                        const p2 = parseInt(dParts[2], 10);
+                    if (dateComps.length === 3) {
+                        const day = parseInt(dateComps[0], 10);
+                        const month = parseInt(dateComps[1], 10) - 1;
+                        const year = parseInt(dateComps[2], 10);
                         
-                        // Heuristic: If middle number > 12, it's US (MM/DD/YYYY). Else assume UK (DD/MM/YYYY)
-                        let day, month, year;
-                        if (p1 > 12) { month = p0 - 1; day = p1; } 
-                        else { day = p0; month = p1 - 1; }
-                        year = p2;
-
-                        // Parse Time (if exists)
-                        let hour=0, min=0, sec=0;
-                        if (parts[1]) {
-                            const tParts = parts[1].split(':');
-                            hour = parseInt(tParts[0], 10) || 0;
-                            min = parseInt(tParts[1], 10) || 0;
-                            sec = parseInt(tParts[2] || "0", 10); // Auto-ignores ".795" milliseconds
-                        }
+                        const timeComps = timePart.split(':');
+                        const hour = parseInt(timeComps[0], 10) || 0;
+                        const min = parseInt(timeComps[1], 10) || 0;
+                        let sec = 0;
+                        if (timeComps[2]) sec = parseInt(timeComps[2].split('.')[0], 10);
 
                         const dt = new Date(year, month, day, hour, min, sec);
                         if (!isNaN(dt.getTime())) return dt;
                     }
                 }
-
-                // 2. Try Standard Browser Parse (ISO YYYY-MM-DD or simple strings)
                 const fallback = new Date(cleanStr);
-                if (!isNaN(fallback.getTime())) return fallback;
-
-                return null;
+                return isNaN(fallback.getTime()) ? null : fallback;
             } catch (e) { return null; }
         }
 
@@ -155,11 +142,9 @@
             const mins = diffMins % 60;
             return `${hours}h ${mins}m`;
         }
-
         function formatMoney(num) {
             return num.toLocaleString('en-SG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         }
-
         function clean(str) { return str ? str.replace(/['"]/g, '').trim() : ''; }
         function cleanNum(str) { return parseFloat(str ? str.replace(/['",]/g, '') : 0); }
 
@@ -169,21 +154,26 @@
                 const text = await res.text();
                 const rows = text.split('\n');
 
-                // DEBUGGING: Capture the first valid data row to see what's wrong
-                let debugRawRow = "";
+                // 1. AUTO-DETECT DELIMITER
+                let delimiter = ',';
+                if (rows[0].includes(';') && !rows[0].includes(',')) delimiter = ';';
+                if (rows[0].includes('\t')) delimiter = '\t';
+                
+                // DEBUG INFO (Saved for failure)
+                const rawHeader = rows[0];
+                const rawFirstRow = rows.length > 1 ? rows[1] : "N/A";
 
                 const data = rows
                     .slice(1) // Skip Header
-                    .map(rowStr => parseCSVLine(rowStr)) 
+                    .map(rowStr => parseCSVLine(rowStr, delimiter)) 
                     .filter(r => {
-                        // FILTER: Ignore empty rows and comments
-                        const isValid = r.length >= 8 && r[2] && r[2].length > 5 && !r[0].startsWith('//');
-                        if (!isValid && r.length > 2) console.log("Skipping invalid row:", r); 
-                        return isValid;
+                        // Filter Logic
+                        const hasCols = r.length >= 8;
+                        const hasDate = r[2] && r[2].length > 5;
+                        const notComment = r[0] && !r[0].startsWith('//');
+                        return hasCols && hasDate && notComment;
                     }) 
                     .map((r, i) => {
-                        if (i === 0) debugRawRow = r; // Capture first row for debug
-
                         const openT = parseDate(clean(r[2]));
                         const closeT = parseDate(clean(r[3]));
                         const rawLabel = clean(r[10]);
@@ -210,21 +200,19 @@
                 const chartData = [...data].sort((a,b) => a.closeTime - b.closeTime);
 
                 if (data.length === 0) {
-                    // SHOW DEBUG INFO ON FAILURE
                     const debugMsg = `
-                        ERROR: No valid trades found.
-                        
-                        --- DEBUG REPORT ---
-                        1. Rows Found: ${rows.length}
-                        2. First Data Row (Raw): ${JSON.stringify(debugRawRow)}
-                        3. Parsed Date Attempt: ${debugRawRow ? parseDate(clean(debugRawRow[2])) : 'N/A'}
+CRITICAL ERROR: No valid trades found.
+
+--- DEBUG REPORT ---
+1. Rows Found: ${rows.length}
+2. Detected Delimiter: "${delimiter}"
+3. Header Raw: ${rawHeader}
+4. First Data Row Raw: ${rawFirstRow}
                     `;
                     throw new Error(debugMsg);
                 }
                 
-                // Hide debug box if successful
                 document.getElementById('debug-box').classList.add('hidden');
-                
                 renderTable(tableData);
                 renderStats(tableData);
                 renderChart(chartData); 
@@ -233,13 +221,11 @@
                 console.error(err);
                 const box = document.getElementById('debug-box');
                 box.classList.remove('hidden');
-                box.innerText = err.message; // Show the debug info on screen
-                
-                document.getElementById('journal-body').innerHTML = `<tr><td colspan="4" class="px-6 py-8 text-center text-red-400 bg-red-500/10 border-l-4 border-red-500">Error loading data (See Debug Box above)</td></tr>`;
+                box.innerText = err.message;
+                document.getElementById('journal-body').innerHTML = `<tr><td colspan="4" class="px-6 py-8 text-center text-red-400 bg-red-500/10 border-l-4 border-red-500">Error: See Debug Box above.</td></tr>`;
             }
         }
 
-        // [Charts and Table rendering remain the same]
         let balanceChartInstance = null;
         function renderChart(trades) {
             const ctx = document.getElementById('balanceChart').getContext('2d');
