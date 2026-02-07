@@ -6,6 +6,7 @@
     <title>Zeriah Journal | Pro Audit</title>
     <link rel="icon" href="https://fav.farm/🤖" />
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #0b1120; color: #e2e8f0; }
@@ -18,7 +19,7 @@
 
     <script>
         // 👇 ENSURE THIS IS YOUR "OUTPUT=CSV" LINK
-        const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRcnTRz38nIVh9_GlvL5lfXquWCQm3iSm6CIe2Dm63aJzOnr2-63gk8p8VTJz-M8fULNM_dwj0c1N5w/pub?gid=0&single=true&output=csv";  
+        const CSV_URL = "PASTE_YOUR_GOOGLE_CSV_LINK_HERE"; 
     </script>
 
     <div class="max-w-7xl mx-auto space-y-6">
@@ -56,6 +57,13 @@
             </div>
         </div>
 
+        <div class="glass p-4 rounded-xl shadow-lg border-t border-slate-700/50">
+            <div class="text-[10px] text-slate-500 uppercase font-bold mb-4">Account Growth (Equity Curve)</div>
+            <div class="h-64 w-full">
+                <canvas id="balanceChart"></canvas>
+            </div>
+        </div>
+
         <div class="glass rounded-xl overflow-hidden shadow-2xl">
             <table class="w-full text-left text-sm">
                 <thead class="bg-slate-900/90 text-[10px] uppercase font-bold text-slate-500 border-b border-slate-700">
@@ -74,7 +82,7 @@
     </div>
 
     <script>
-        // --- HELPER: Smart CSV Line Parser ---
+        // --- HELPER: Smart CSV Parser ---
         function parseCSVLine(text) {
             const result = [];
             let cell = '';
@@ -89,16 +97,14 @@
             return result;
         }
 
-        // --- HELPER: Smart Date Parser (Auto-detects US vs UK) ---
+        // --- HELPER: Smart Date Parser ---
         function parseDate(dateStr) {
             if (!dateStr || typeof dateStr !== 'string') return null;
             const cleanStr = dateStr.trim().replace(/"/g, ''); 
-
             try {
                 const parts = cleanStr.split(' ');
                 const datePart = parts[0];
                 const timePart = parts[1] || '00:00:00';
-
                 if (datePart.includes('/')) {
                     const dateComps = datePart.split('/');
                     if (dateComps.length === 3) {
@@ -106,21 +112,10 @@
                         const p0 = parseInt(dateComps[0], 10);
                         const p1 = parseInt(dateComps[1], 10);
                         const p2 = parseInt(dateComps[2], 10);
-
-                        // LOGIC: Identify which part is the Day vs Month
-                        if (p1 > 12) {
-                            // Middle number > 12? It must be US Format (MM/DD/YYYY)
-                            month = p0 - 1;
-                            day = p1;
-                        } else {
-                            // Otherwise, assume standard UK/International (DD/MM/YYYY)
-                            // (Or fallback to browser default if ambiguous)
-                            day = p0;
-                            month = p1 - 1;
-                        }
+                        if (p1 > 12) { month = p0 - 1; day = p1; } 
+                        else { day = p0; month = p1 - 1; }
                         year = p2;
-
-                        // Parse Time
+                        
                         const timeComps = timePart.split(':');
                         const hour = parseInt(timeComps[0], 10) || 0;
                         const min = parseInt(timeComps[1], 10) || 0;
@@ -131,13 +126,12 @@
                         if (!isNaN(dt.getTime())) return dt;
                     }
                 }
-                // Fallback for ISO dates (YYYY-MM-DD)
                 const fallback = new Date(cleanStr);
                 return isNaN(fallback.getTime()) ? null : fallback;
             } catch (e) { return null; }
         }
 
-        // --- HELPER: Duration Calc ---
+        // --- HELPER: Formats ---
         function getDuration(start, end) {
             if (!start || !end || isNaN(start.getTime()) || isNaN(end.getTime())) return "-";
             const diffMs = end - start;
@@ -148,7 +142,6 @@
             return `${hours}h ${mins}m`;
         }
 
-        // --- HELPER: Money Formatter ---
         function formatMoney(num) {
             return num.toLocaleString('en-SG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         }
@@ -181,16 +174,24 @@
                             entry: cleanNum(r[4]),
                             exit: cleanNum(r[5]),
                             net: cleanNum(r[8]),
+                            balance: cleanNum(r[9]), // COL J: Balance
                             bot: (rawLabel === "" || rawLabel === undefined) ? 'Manual Trade' : rawLabel,
                             pid: `TRD-${1000+i}`
                         };
                     })
-                    .filter(t => t.openTime !== null)
-                    .sort((a,b) => b.closeTime - a.closeTime);
+                    .filter(t => t.openTime !== null);
+
+                // Sort for Table (Newest First)
+                const tableData = [...data].sort((a,b) => b.closeTime - a.closeTime);
+                
+                // Sort for Chart (Oldest First)
+                const chartData = [...data].sort((a,b) => a.closeTime - b.closeTime);
 
                 if (data.length === 0) throw new Error("No valid trades found.");
-                renderTable(data);
-                renderStats(data);
+                
+                renderTable(tableData);
+                renderStats(tableData);
+                renderChart(chartData); // Render the new chart
 
             } catch (err) {
                 console.error(err);
@@ -198,11 +199,75 @@
             }
         }
 
+        // --- NEW CHART FUNCTION ---
+        let balanceChartInstance = null;
+        function renderChart(trades) {
+            const ctx = document.getElementById('balanceChart').getContext('2d');
+            
+            // Prepare Data Points
+            const labels = trades.map(t => t.closeTime.toLocaleDateString('en-SG', {day:'numeric', month:'short'}));
+            const dataPoints = trades.map(t => t.balance);
+
+            if (balanceChartInstance) balanceChartInstance.destroy();
+
+            balanceChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Account Balance (SGD)',
+                        data: dataPoints,
+                        borderColor: '#22d3ee', // Cyan
+                        backgroundColor: 'rgba(34, 211, 238, 0.1)',
+                        borderWidth: 2,
+                        pointRadius: 0, // Clean line without dots
+                        pointHoverRadius: 4,
+                        fill: true,
+                        tension: 0.4 // Smooth curve
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                            titleColor: '#94a3b8',
+                            bodyColor: '#fff',
+                            borderColor: '#334155',
+                            borderWidth: 1
+                        }
+                    },
+                    scales: {
+                        x: {
+                            display: false, // Hide X axis labels for cleaner look
+                            grid: { display: false }
+                        },
+                        y: {
+                            grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                            ticks: { 
+                                color: '#64748b',
+                                font: { family: "'JetBrains Mono', monospace", size: 10 } 
+                            }
+                        }
+                    },
+                    interaction: {
+                        mode: 'nearest',
+                        axis: 'x',
+                        intersect: false
+                    }
+                }
+            });
+        }
+
+        // [renderTable and renderStats remain EXACTLY the same]
         function renderTable(trades) {
             const html = trades.map(t => {
                 const isWin = t.net >= 0;
                 const openStr = t.openTime ? t.openTime.toLocaleString('en-SG', {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'}) : '-';
-                
                 return `
                 <tr class="hover:bg-white/5 transition group cursor-pointer border-l-2 border-transparent hover:border-blue-500" onclick="toggleDetails(${t.id})">
                     <td class="px-6 py-4 align-top">
@@ -256,6 +321,7 @@
                                 <div class="uppercase tracking-widest text-[10px] mb-2 text-slate-500 font-bold">Result</div>
                                 <div class="grid grid-cols-2 gap-y-1">
                                      <span class="text-white font-bold border-t border-slate-700 mt-1 pt-1">Net PnL:</span> <span class="text-white font-bold border-t border-slate-700 mt-1 pt-1">${formatMoney(t.net)} SGD</span>
+                                     <span class="text-slate-400 border-t border-slate-700 mt-1 pt-1">Balance:</span> <span class="text-slate-200 border-t border-slate-700 mt-1 pt-1">${formatMoney(t.balance)}</span>
                                 </div>
                             </div>
                         </div>
